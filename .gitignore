@@ -1,0 +1,17 @@
+# Compiled binaries
+flight_planner
+c
+*.out
+*.o
+*.dSYM/
+
+# Editor / IDE
+.vscode/
+.idea/
+
+# macOS
+.DS_Store
+
+# Scratch / experimental files (not part of this project)
+main.cpp
+c.cpp
