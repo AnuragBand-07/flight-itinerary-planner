@@ -67,7 +67,7 @@ City names are case-sensitive and must match the dataset. The file spells Bengal
 
 `./flight_planner --demo` loads the dataset, lists the cities, then prints the queries below. A screen recording of this run is at
 [`demo/demo.mp4`](demo/demo.mp4)
-([direct link](https://github.com/AnuragBand-07/flight-itinerary-planner/raw/main/demo/demo.mp4)).
+([direct link](https://cdn.jsdelivr.net/gh/AnuragBand-07/flight-itinerary-planner@main/demo/demo.mp4)).
 
 ```
 --- Demo query 1: cheapest direct route (Dijkstra) ---
