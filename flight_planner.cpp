@@ -183,16 +183,94 @@ static void buildGraph(const vector<Flight>& flights,
 }
 
 // ============================================================
+// RESULT PRINTER
+// ============================================================
+static void printRoute(const CityEncoder& encoder, const vector<int>& path) {
+    for (int i = 0; i < (int)path.size(); ++i) {
+        cout << encoder.decode(path[i]);
+        if (i + 1 < (int)path.size()) cout << " -> ";
+    }
+}
+
+static int pathCost(const vector<vector<pair<int,int>>>& adj, const vector<int>& path) {
+    int totalCost = 0;
+    for (int i = 0; i + 1 < (int)path.size(); ++i) {
+        int u = path[i], v = path[i + 1];
+        for (auto [nb, cost] : adj[u])
+            if (nb == v) { totalCost += cost; break; }
+    }
+    return totalCost;
+}
+
+static void printResult(const CityEncoder& encoder,
+                        const vector<vector<pair<int,int>>>& adj,
+                        const vector<int>& path,
+                        bool cheapest) {
+    if (path.empty()) {
+        cout << "\nNo route found.\n";
+        return;
+    }
+    int layovers = max(0, (int)path.size() - 2);
+    if (cheapest) {
+        cout << "\n[Cheapest Route — Dijkstra]\n";
+        cout << "Route:      ";
+        printRoute(encoder, path);
+        cout << "\nTotal Cost: Rs. " << pathCost(adj, path) << "\n";
+        cout << "Layovers:   " << layovers << "\n";
+    } else {
+        cout << "\n[Minimum Layovers — BFS]\n";
+        cout << "Route:    ";
+        printRoute(encoder, path);
+        cout << "\nLayovers: " << layovers << "\n";
+    }
+}
+
+// Scripted queries used by --demo and by demo/demo.mp4.
+// City names match the dataset, including the spelling "Banglore".
+static void runDemo(algo& routingEngine, int n, CityEncoder& encoder,
+                    vector<vector<pair<int,int>>>& adj) {
+    struct Query { const char* label; const char* src; const char* dst; bool cheapest; };
+    const Query queries[] = {
+        {"Demo query 1: cheapest direct route (Dijkstra)", "Banglore", "Delhi", true},
+        {"Demo query 2: fewest layovers (BFS)", "Banglore", "Cochin", false},
+        {"Demo query 3: same trip, cheapest fare (Dijkstra)", "Banglore", "Cochin", true},
+        {"Demo query 4: unreachable pair", "Mumbai", "Delhi", true},
+        {"Demo query 5: longer itinerary (Dijkstra)", "Chennai", "Cochin", true},
+    };
+
+    for (const auto& q : queries) {
+        cout << "--- " << q.label << " ---\n";
+        cout << q.src << " -> " << q.dst << "\n";
+        int srcId = encoder.getId(q.src);
+        int dstId = encoder.getId(q.dst);
+        vector<int> path = q.cheapest
+            ? routingEngine.dijkstra(n, adj, srcId, dstId)
+            : routingEngine.bfs(n, adj, srcId, dstId);
+        printResult(encoder, adj, path, q.cheapest);
+        cout << "\n";
+    }
+}
+
+// ============================================================
 // MAIN — CLI input loop
 // Query format:
-//   Line 1: source destination
-//   Line 2: 1 (min layovers/BFS)  or  2 (cheapest/Dijkstra)
+//   Line 1: source city
+//   Line 2: destination city
+//   Line 3: 1 (min layovers/BFS)  or  2 (cheapest/Dijkstra)
+// Non-interactive: ./flight_planner --demo
 // ============================================================
-int main() {
+int main(int argc, char** argv) {
     string csvPath = "processed_data.csv";
+    bool demo = false;
+    for (int i = 1; i < argc; ++i) {
+        string arg = argv[i];
+        if (arg == "--demo") demo = true;
+        else csvPath = arg;
+    }
+
     if (!ifstream(csvPath).is_open()) {
         cout << "Enter path to processed_data.csv: ";
-        getline(cin, csvPath);
+        if (!getline(cin, csvPath)) return 1;
     }
 
     cout << "Loading flight data...\n";
@@ -217,18 +295,23 @@ int main() {
 
     algo routingEngine;
 
+    if (demo) {
+        runDemo(routingEngine, n, encoder, adj);
+        return 0;
+    }
+
     while (true) {
         cout << "========================================\n";
         cout << "  Multicriteria Flight Itinerary Planner\n";
         cout << "========================================\n";
         cout << "Enter source city (or 'quit'): ";
         string src;
-        getline(cin, src);
+        if (!getline(cin, src)) break;
         if (src == "quit" || src == "q") break;
 
         cout << "Enter destination city: ";
         string dst;
-        getline(cin, dst);
+        if (!getline(cin, dst)) break;
 
         if (!encoder.has(src)) { cout << "Unknown city: " << src << "\n\n"; continue; }
         if (!encoder.has(dst)) { cout << "Unknown city: " << dst << "\n\n"; continue; }
@@ -239,47 +322,15 @@ int main() {
              << "  2 - Cheapest route   (Dijkstra)\n"
              << "Choice: ";
         string choice;
-        getline(cin, choice);
+        if (!getline(cin, choice)) break;
 
         int srcId = encoder.getId(src);
         int dstId = encoder.getId(dst);
 
         if (choice == "1") {
-            vector<int> path = routingEngine.bfs(n, adj, srcId, dstId);
-            if (path.empty()) {
-                cout << "No route found.\n";
-            } else {
-                cout << "\n[Minimum Layovers — BFS]\n";
-                cout << "Route:    ";
-                for (int i = 0; i < (int)path.size(); ++i) {
-                    cout << encoder.decode(path[i]);
-                    if (i + 1 < (int)path.size()) cout << " -> ";
-                }
-                int layovers = (int)path.size() - 2;
-                cout << "\nLayovers: " << max(0, layovers) << "\n";
-            }
+            printResult(encoder, adj, routingEngine.bfs(n, adj, srcId, dstId), false);
         } else if (choice == "2") {
-            vector<int> path = routingEngine.dijkstra(n, adj, srcId, dstId);
-            if (path.empty()) {
-                cout << "No route found.\n";
-            } else {
-                // Recompute total cost from path
-                int totalCost = 0;
-                for (int i = 0; i + 1 < (int)path.size(); ++i) {
-                    int u = path[i], v = path[i+1];
-                    for (auto [nb, cost] : adj[u])
-                        if (nb == v) { totalCost += cost; break; }
-                }
-                cout << "\n[Cheapest Route — Dijkstra]\n";
-                cout << "Route:      ";
-                for (int i = 0; i < (int)path.size(); ++i) {
-                    cout << encoder.decode(path[i]);
-                    if (i + 1 < (int)path.size()) cout << " -> ";
-                }
-                int layovers = (int)path.size() - 2;
-                cout << "\nTotal Cost: Rs. " << totalCost << "\n";
-                cout << "Layovers:   " << max(0, layovers) << "\n";
-            }
+            printResult(encoder, adj, routingEngine.dijkstra(n, adj, srcId, dstId), true);
         } else {
             cout << "Invalid choice.\n";
         }

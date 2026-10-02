@@ -55,29 +55,64 @@ processed_data.csv
 
 ```bash
 g++ -O2 -std=c++17 -o flight_planner flight_planner.cpp
-./flight_planner        # reads processed_data.csv from the current directory
+./flight_planner --demo   # scripted queries, no keyboard input
+./flight_planner          # interactive; reads processed_data.csv from the current directory
 ```
 
-Then follow the prompts: enter a source city, a destination city, and choose
-`1` (fewest layovers) or `2` (cheapest route).
+`make demo` does the same build and runs the scripted demo.
 
-### Example
+City names are case-sensitive and must match the dataset. The file spells Bengaluru as `Banglore`.
+
+### Demo output
+
+`./flight_planner --demo` loads the dataset, lists the cities, then prints the queries below. A screen recording of this run is at
+[`demo/demo.mp4`](demo/demo.mp4)
+([direct link](https://github.com/AnuragBand-07/flight-itinerary-planner/raw/main/demo/demo.mp4)).
 
 ```
-Enter source city (or 'quit'): Banglore
-Enter destination city: Delhi
-Query type:
-  1 - Minimum layovers (BFS)
-  2 - Cheapest route   (Dijkstra)
-Choice: 2
+--- Demo query 1: cheapest direct route (Dijkstra) ---
+Banglore -> Delhi
 
 [Cheapest Route — Dijkstra]
 Route:      Banglore -> Delhi
-Total Cost: Rs. 3897
+Total Cost: Rs. 3257
 Layovers:   0
+
+--- Demo query 2: fewest layovers (BFS) ---
+Banglore -> Cochin
+
+[Minimum Layovers — BFS]
+Route:    Banglore -> Delhi -> Cochin
+Layovers: 1
+
+--- Demo query 3: same trip, cheapest fare (Dijkstra) ---
+Banglore -> Cochin
+
+[Cheapest Route — Dijkstra]
+Route:      Banglore -> Delhi -> Cochin
+Total Cost: Rs. 7133
+Layovers:   1
+
+--- Demo query 4: unreachable pair ---
+Mumbai -> Delhi
+
+No route found.
+
+--- Demo query 5: longer itinerary (Dijkstra) ---
+Chennai -> Cochin
+
+[Cheapest Route — Dijkstra]
+Route:      Chennai -> Kolkata -> Banglore -> Delhi -> Cochin
+Total Cost: Rs. 13758
+Layovers:   3
 ```
+
+The fare on a city pair is the minimum price in the dataset for that pair, so
+Banglore → Delhi is Rs. 3257, not the fare of the first matching row.
 
 ## Dataset
 
 `processed_data.csv` — 10,683 rows of Indian domestic flights with columns for airline,
-source, destination, date/time, and price. Prices are in INR.
+source, destination, date/time, and price. Prices are in INR. The graph has 7 cities
+and 5 directed routes; several city pairs are only reachable through layovers, and
+some (for example Mumbai → Delhi) have no route.
